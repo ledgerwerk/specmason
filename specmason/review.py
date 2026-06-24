@@ -125,9 +125,7 @@ def run_review(
     findings = findings.extend(policy_findings)
 
     discovered = discover_tests(cfg.tests_dir, root=cfg.workspace_root)
-    inventory = build_inventory(
-        discovered, central_waivers=central_waivers
-    )
+    inventory = build_inventory(discovered, central_waivers=central_waivers)
     findings = findings.extend(inventory.findings)
 
     # Coverage.
@@ -142,9 +140,7 @@ def run_review(
         for junit_path in sorted(evidence_dir.rglob("*.xml")):
             try:
                 evidence_report = parse_junit_xml(junit_path)
-                mapped_nodeids = {
-                    t.nodeid for t in inventory.tests if t.is_mapped
-                }
+                mapped_nodeids = {t.nodeid for t in inventory.tests if t.is_mapped}
                 ev_findings = check_evidence_against_mappings(
                     evidence_report, mapped_nodeids
                 )
@@ -153,7 +149,8 @@ def run_review(
             except OSError as exc:
                 findings = findings.append(
                     Finding(
-                        "SML003", "error",
+                        "SML003",
+                        "error",
                         f"failed to parse {junit_path}: {exc}",
                         str(junit_path),
                     )

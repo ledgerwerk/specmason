@@ -22,12 +22,7 @@ from specmason.requirements import Criterion, Requirement, build_index
 
 
 def _feature(path: str, req: str, ac: str, name: str = "S") -> object:
-    text = (
-        f"Feature: F\n"
-        f"  @req-{req} @ac-{ac}\n"
-        f"  Scenario: {name}\n"
-        f"    Then ok\n"
-    )
+    text = f"Feature: F\n  @req-{req} @ac-{ac}\n  Scenario: {name}\n    Then ok\n"
     return parse_feature(text, path=path)
 
 
@@ -139,8 +134,7 @@ def test_candidate_match_is_hint_only() -> None:
     assert statuses["tests/t.py::test_reject_invalid_password"] == "unmapped"
     assert any(f.code == SML022_CANDIDATE_MATCH_NOT_BINDING for f in report.findings)
     hint = next(
-        f for f in report.findings
-        if f.code == SML022_CANDIDATE_MATCH_NOT_BINDING
+        f for f in report.findings if f.code == SML022_CANDIDATE_MATCH_NOT_BINDING
     )
     assert hint.severity == "info"
 

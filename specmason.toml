@@ -20,6 +20,13 @@ require_req_tag = true
 require_ac_tag = true
 allow_markdown_gherkin = false
 official_parser = false
+profile = "reqledger"
+
+[external_corpus]
+id_namespace = "EPUBCHECK"
+id_strategy = "path-scenario-hash"
+fixture_roots = ["specs/behavior/features"]
+expected_message_tags = ["error", "warning", "fatal", "usage"]
 
 [pytest]
 mapping_comment_prefix = "specmason"

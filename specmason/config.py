@@ -54,6 +54,9 @@ _SCALAR_FIELDS: tuple[tuple[str, str, str, str], ...] = (
     ("gherkin_require_ac_tag", "gherkin", "require_ac_tag", "bool"),
     ("gherkin_allow_markdown_gherkin", "gherkin", "allow_markdown_gherkin", "bool"),
     ("gherkin_official_parser", "gherkin", "official_parser", "bool"),
+    ("gherkin_profile", "gherkin", "profile", "str"),
+    ("external_corpus_id_namespace", "external_corpus", "id_namespace", "str"),
+    ("external_corpus_id_strategy", "external_corpus", "id_strategy", "str"),
     ("pytest_mapping_comment_prefix", "pytest", "mapping_comment_prefix", "str"),
     (
         "pytest_short_mapping_comment_prefix",
@@ -113,6 +116,13 @@ def _default_fields() -> dict[str, Any]:
             "require_ac_tag": True,
             "allow_markdown_gherkin": False,
             "official_parser": False,
+            "profile": "reqledger",
+        },
+        "external_corpus": {
+            "id_namespace": "EPUBCHECK",
+            "id_strategy": "path-scenario-hash",
+            "fixture_roots": ["specs/behavior/features"],
+            "expected_message_tags": ["error", "warning", "fatal", "usage"],
         },
         "pytest": {
             "mapping_comment_prefix": "specmason",
@@ -201,6 +211,11 @@ class SpecMasonConfig:
     gherkin_require_ac_tag: bool
     gherkin_allow_markdown_gherkin: bool
     gherkin_official_parser: bool
+    gherkin_profile: str
+    external_corpus_id_namespace: str
+    external_corpus_id_strategy: str
+    external_corpus_fixture_roots: tuple[Path, ...]
+    external_corpus_expected_message_tags: tuple[str, ...]
     pytest_mapping_comment_prefix: str
     pytest_short_mapping_comment_prefix: str
     pytest_intentional_unmapped_policy: Path
@@ -270,6 +285,7 @@ def _resolve_config(
         "requirements": _section(document, "requirements"),
         "gherkin": _section(document, "gherkin"),
         "pytest": _section(document, "pytest"),
+        "external_corpus": _section(document, "external_corpus"),
     }
 
     kw: dict[str, Any] = {
@@ -283,9 +299,7 @@ def _resolve_config(
         kw[attr] = _resolve_relative(config_dir, value, field_name=key)
 
     if requirements_override is not None:
-        kw["requirements_manifest"] = (
-            Path(requirements_override).expanduser().resolve()
-        )
+        kw["requirements_manifest"] = Path(requirements_override).expanduser().resolve()
     else:
         default_manifest = defaults["requirements"]["manifest"]
         value = str(sections["requirements"].get("manifest", default_manifest))
@@ -298,6 +312,15 @@ def _resolve_config(
         kw[attr] = _scalar(
             attr, section, key, kind, source=src, defaults=defaults, base=config_dir
         )[1]
+    # List-typed external_corpus fields.
+    ec_sec = sections["external_corpus"]
+    ec_defaults = defaults["external_corpus"]
+    raw_roots = ec_sec.get("fixture_roots", ec_defaults["fixture_roots"])
+    kw["external_corpus_fixture_roots"] = tuple(
+        _resolve_relative(config_dir, r, field_name="fixture_roots") for r in raw_roots
+    )
+    raw_tags = ec_sec.get("expected_message_tags", ec_defaults["expected_message_tags"])
+    kw["external_corpus_expected_message_tags"] = tuple(str(t) for t in raw_tags)
 
     return SpecMasonConfig(**kw)
 
@@ -332,6 +355,7 @@ def _build_defaults(start: Path) -> SpecMasonConfig:
         "gherkin_require_ac_tag": bool(gh_d["require_ac_tag"]),
         "gherkin_allow_markdown_gherkin": bool(gh_d["allow_markdown_gherkin"]),
         "gherkin_official_parser": bool(gh_d["official_parser"]),
+        "gherkin_profile": str(gh_d["profile"]),
         "pytest_mapping_comment_prefix": str(py_d["mapping_comment_prefix"]),
         "pytest_short_mapping_comment_prefix": str(
             py_d["short_mapping_comment_prefix"]
@@ -339,6 +363,14 @@ def _build_defaults(start: Path) -> SpecMasonConfig:
         "pytest_intentional_unmapped_policy": (
             base / py_d["intentional_unmapped_policy"]
         ).resolve(),
+        "external_corpus_id_namespace": str(d["external_corpus"]["id_namespace"]),
+        "external_corpus_id_strategy": str(d["external_corpus"]["id_strategy"]),
+        "external_corpus_fixture_roots": tuple(
+            (base / r).resolve() for r in d["external_corpus"]["fixture_roots"]
+        ),
+        "external_corpus_expected_message_tags": tuple(
+            d["external_corpus"]["expected_message_tags"]
+        ),
     }
     return SpecMasonConfig(**kw)
 

@@ -75,10 +75,7 @@ def test_blank_line_breaks_comment_block(tmp_path: Path) -> None:
     _write(
         tmp_path / "tests",
         "test_m.py",
-        "# specmason: req=REQ-0001 ac=AC-0001\n"
-        "\n"
-        "def test_mapped():\n"
-        "    pass\n",
+        "# specmason: req=REQ-0001 ac=AC-0001\n\ndef test_mapped():\n    pass\n",
     )
     tests = discover_tests(tmp_path / "tests", root=tmp_path)
     test = next(t for t in tests if t.name == "test_mapped")

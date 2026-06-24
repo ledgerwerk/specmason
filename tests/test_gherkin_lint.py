@@ -12,12 +12,7 @@ from specmason.errors import (
 from specmason.gherkin.lint import lint_feature, lint_feature_with_authority
 from specmason.gherkin.parser import parse_feature
 
-FEATURE = (
-    "Feature: F\n"
-    "  @req-REQ-0001 @ac-AC-0001\n"
-    "  Scenario: ok\n"
-    "    Then c\n"
-)
+FEATURE = "Feature: F\n  @req-REQ-0001 @ac-AC-0001\n  Scenario: ok\n    Then c\n"
 
 
 def _feature(text: str = FEATURE) -> object:

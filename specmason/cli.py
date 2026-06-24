@@ -94,9 +94,7 @@ def _load_inventory(cfg: object) -> MappingInventory:
     from specmason.config import SpecMasonConfig
 
     c: SpecMasonConfig = cfg  # type: ignore[assignment]
-    waivers, _ = load_intentional_unmapped_policy(
-        c.pytest_intentional_unmapped_policy
-    )
+    waivers, _ = load_intentional_unmapped_policy(c.pytest_intentional_unmapped_policy)
     discovered = discover_tests(c.tests_dir, root=c.workspace_root)
     return build_inventory(discovered, central_waivers=waivers)
 
@@ -141,9 +139,7 @@ def init_command(
 @app.command("check")
 def check_command(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
-    config: Path | None = typer.Option(
-        None, "--config", help="Config file path."
-    ),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
     requirements: str | None = typer.Option(
         None, "--requirements", help="ReqLedger manifest path."
     ),
@@ -161,7 +157,6 @@ def check_command(
     index = _load_index(c)
     findings: list = []
 
-
     if c.features_dir.is_dir():
         for path in sorted(c.features_dir.rglob("*.feature")):
             try:
@@ -177,9 +172,7 @@ def check_command(
             except GherkinParseError as exc:
                 from specmason.errors import Finding
 
-                findings.append(
-                    Finding(exc.code, "error", exc.message, exc.path)
-                )
+                findings.append(Finding(exc.code, "error", exc.message, exc.path))
 
     waivers, policy_findings = load_intentional_unmapped_policy(
         c.pytest_intentional_unmapped_policy
@@ -213,9 +206,7 @@ def create_gherkin_command(
     dry_run: bool = typer.Option(False, "--dry-run", help="Don't write files."),
     force: bool = typer.Option(False, "--force", help="Overwrite existing files."),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
-    config: Path | None = typer.Option(
-        None, "--config", help="Config file path."
-    ),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
 ) -> None:
     """Generate draft Gherkin feature files from accepted behavior criteria."""
     cfg = _resolve_config(config=config, requirements=from_manifest)
@@ -224,8 +215,11 @@ def create_gherkin_command(
     c: SpecMasonConfig = cfg  # type: ignore[assignment]
     index = load_manifest(from_manifest)
     result = generate_features(
-        index, c.features_dir,
-        area=area, force=force, dry_run=dry_run,
+        index,
+        c.features_dir,
+        area=area,
+        force=force,
+        dry_run=dry_run,
     )
     if json_output:
         typer.echo(_to_json(result.to_dict()))
@@ -238,9 +232,7 @@ def create_gherkin_command(
 @app.command("discover-pytest")
 def discover_pytest_command(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
-    config: Path | None = typer.Option(
-        None, "--config", help="Config file path."
-    ),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
 ) -> None:
     """Discover pytest tests without importing test modules."""
     cfg = _resolve_config(config=config, requirements=None)
@@ -265,9 +257,7 @@ def coverage_command(
         None, "--requirements", help="ReqLedger manifest path."
     ),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
-    config: Path | None = typer.Option(
-        None, "--config", help="Config file path."
-    ),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
 ) -> None:
     """Report requirement-to-test and test-to-requirement coverage."""
     cfg = _resolve_config(config=config, requirements=requirements)
@@ -299,9 +289,7 @@ def coverage_command(
 @app.command("mappings")
 def mappings_command(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
-    config: Path | None = typer.Option(
-        None, "--config", help="Config file path."
-    ),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
 ) -> None:
     """Show the pytest mapping inventory."""
     cfg = _resolve_config(config=config, requirements=None)
@@ -323,9 +311,7 @@ def import_report_command(
     format: str = typer.Argument("pytest-junit", help="Report format (pytest-junit)."),
     path: str = typer.Argument(..., help="Path to JUnit XML report."),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
-    config: Path | None = typer.Option(
-        None, "--config", help="Config file path."
-    ),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
 ) -> None:
     """Import pytest JUnit XML evidence."""
     cfg = _resolve_config(config=config, requirements=None)
@@ -355,9 +341,7 @@ def import_report_command(
 @app.command("review")
 def review_command(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
-    config: Path | None = typer.Option(
-        None, "--config", help="Config file path."
-    ),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
     requirements: str | None = typer.Option(
         None, "--requirements", help="ReqLedger manifest path."
     ),
@@ -376,6 +360,109 @@ def review_command(
             typer.echo(f.render())
         typer.echo(f"reports: {', '.join(result.reports_written)}")
     if result.has_errors:
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# Corpus commands (external corpus mode)
+# ---------------------------------------------------------------------------
+
+
+corpus_app = typer.Typer(
+    name="corpus",
+    help="Inspect and inventory an external Gherkin corpus.",
+    no_args_is_help=True,
+    add_completion=False,
+)
+app.add_typer(corpus_app, name="corpus")
+
+
+@corpus_app.command("inspect")
+def corpus_inspect_command(
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
+) -> None:
+    """Inventory features, scenarios, outlines, steps, tags, fixtures, and findings."""
+    cfg = _resolve_config(config=config, requirements=None)
+    from specmason.config import SpecMasonConfig
+
+    c: SpecMasonConfig = cfg  # type: ignore[assignment]
+    from specmason.corpus import run_corpus_inspect
+
+    result, findings = run_corpus_inspect(
+        c.features_dir,
+        official_parser=c.gherkin_official_parser,
+        fixture_roots=c.external_corpus_fixture_roots,
+        namespace=c.external_corpus_id_namespace,
+    )
+    if json_output:
+        typer.echo(result.to_json())
+    else:
+        inv = result.inventory
+        typer.echo(f"Features: {inv.feature_count}")
+        typer.echo(f"Scenarios: {inv.scenario_count}")
+        typer.echo(f"Outlines: {inv.outline_count}")
+        typer.echo(f"Expanded examples: {inv.expanded_example_count}")
+        typer.echo(f"Step patterns: {inv.step_pattern_count}")
+        typer.echo(f"Steps: {inv.step_count}")
+        typer.echo(f"Tags: {inv.tag_count}")
+        typer.echo(f"Fixture refs: {inv.fixture_ref_count}")
+        for f in findings:
+            typer.echo(f.render())
+    if any(f.is_error() for f in findings):
+        raise typer.Exit(code=1)
+
+
+@corpus_app.command("steps")
+def corpus_steps_command(
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
+) -> None:
+    """Report the normalized step vocabulary."""
+    cfg = _resolve_config(config=config, requirements=None)
+    from specmason.config import SpecMasonConfig
+
+    c: SpecMasonConfig = cfg  # type: ignore[assignment]
+    from specmason.corpus import parse_corpus, render_steps_json, render_steps_markdown
+    from specmason.gherkin.step_vocab import build_step_vocabulary
+
+    features, _, findings = parse_corpus(
+        c.features_dir, official_parser=c.gherkin_official_parser
+    )
+    vocab = build_step_vocabulary(features)
+    if json_output:
+        typer.echo(render_steps_json(vocab))
+    else:
+        typer.echo(render_steps_markdown(vocab))
+    if any(f.is_error() for f in findings):
+        raise typer.Exit(code=1)
+
+
+@corpus_app.command("fixtures")
+def corpus_fixtures_command(
+    json_output: bool = typer.Option(False, "--json", help="Emit JSON to stdout."),
+    config: Path | None = typer.Option(None, "--config", help="Config file path."),
+) -> None:
+    """Report extracted fixture references with resolution metadata."""
+    cfg = _resolve_config(config=config, requirements=None)
+    from specmason.config import SpecMasonConfig
+
+    c: SpecMasonConfig = cfg  # type: ignore[assignment]
+    from specmason.corpus import parse_corpus, render_fixtures_json
+
+    features, _, findings = parse_corpus(
+        c.features_dir, official_parser=c.gherkin_official_parser
+    )
+    if json_output:
+        typer.echo(render_fixtures_json(features, c.external_corpus_fixture_roots))
+    else:
+        from specmason.fixtures import extract_fixture_refs
+
+        for feat in features:
+            for ref in extract_fixture_refs(feat, c.external_corpus_fixture_roots):
+                status = "exists" if ref.exists else "MISSING"
+                typer.echo(f"{feat.path}: {ref.raw} [{ref.kind}] {status}")
+    if any(f.is_error() for f in findings):
         raise typer.Exit(code=1)
 
 

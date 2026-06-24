@@ -59,8 +59,12 @@ Issues = "https://github.com/ledgerwerk/specmason/issues"
 Changelog = "https://github.com/ledgerwerk/specmason/releases"
 
 [project.optional-dependencies]
+gherkin = [
+    "gherkin-official",
+]
 dev = [
     "build",
+    "gherkin-official",
     "mypy",
     "pytest",
     "pytest-xdist",

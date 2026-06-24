@@ -135,7 +135,9 @@ class CoverageReport:
         return dumps_json(self.to_dict(), indent=2, sort_keys=True)
 
 
-def _index_scenarios(features: list[Feature]) -> tuple[
+def _index_scenarios(
+    features: list[Feature],
+) -> tuple[
     dict[str, list[ScenarioRef]],
     dict[str, list[ScenarioRef]],
     dict[str, Feature],
@@ -265,8 +267,11 @@ def _classify_mapped_test(
     statuses: list[CoverageStatus] = []
     for req_id, ac_id in test.criterion_ids():
         feature_hint = next(
-            (m.feature for m in test.mappings
-                if m.req_id == req_id and m.ac_id == ac_id),
+            (
+                m.feature
+                for m in test.mappings
+                if m.req_id == req_id and m.ac_id == ac_id
+            ),
             "",
         )
         if index is not None:
@@ -369,12 +374,15 @@ def build_coverage(
         )
 
     forward, findings = _build_forward(
-        features, inventory, index=index, by_ac=by_ac,
-        tests_by_ac=tests_by_ac, findings=findings
+        features,
+        inventory,
+        index=index,
+        by_ac=by_ac,
+        tests_by_ac=tests_by_ac,
+        findings=findings,
     )
     reverse, findings = _build_reverse(
-        inventory, index=index, by_path=by_path,
-        by_ac=by_ac, findings=findings
+        inventory, index=index, by_path=by_path, by_ac=by_ac, findings=findings
     )
 
     return CoverageReport(

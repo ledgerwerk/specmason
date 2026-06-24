@@ -21,12 +21,10 @@ def test_load_config_uses_defaults_when_none(tmp_path: Path) -> None:
     assert cfg.config_path == Path()
     assert cfg.is_standalone
     assert cfg.mode is Mode.STANDALONE
-    assert cfg.features_dir == (
-        tmp_path / "specs/behavior/features"
-    ).resolve()
-    assert cfg.requirements_manifest == (
-        tmp_path / "requirements/manifest.json"
-    ).resolve()
+    assert cfg.features_dir == (tmp_path / "specs/behavior/features").resolve()
+    assert (
+        cfg.requirements_manifest == (tmp_path / "requirements/manifest.json").resolve()
+    )
     assert cfg.gherkin_require_req_tag is True
     assert cfg.pytest_mapping_comment_prefix == "specmason"
 
@@ -34,12 +32,12 @@ def test_load_config_uses_defaults_when_none(tmp_path: Path) -> None:
 def test_public_config_wins_over_hidden(tmp_path: Path) -> None:
     write_config(
         tmp_path,
-        "schema_version = 1\n[paths]\ntests_dir = \"t_hidden\"\n",
+        'schema_version = 1\n[paths]\ntests_dir = "t_hidden"\n',
         ".specmason.toml",
     )
     public = write_config(
         tmp_path,
-        "schema_version = 1\n[paths]\ntests_dir = \"t_public\"\n",
+        'schema_version = 1\n[paths]\ntests_dir = "t_public"\n',
     )
     cfg = load_config(start=tmp_path)
     assert cfg.config_path == public.resolve()
@@ -47,12 +45,12 @@ def test_public_config_wins_over_hidden(tmp_path: Path) -> None:
 
 
 def test_explicit_config_overrides_discovery(tmp_path: Path) -> None:
-    write_config(tmp_path, "schema_version = 1\n[paths]\ntests_dir = \"discovered\"\n")
+    write_config(tmp_path, 'schema_version = 1\n[paths]\ntests_dir = "discovered"\n')
     explicit = tmp_path / "elsewhere"
     explicit.mkdir()
     write_config(
         explicit,
-        "schema_version = 1\n[paths]\ntests_dir = \"explicit_dir\"\n",
+        'schema_version = 1\n[paths]\ntests_dir = "explicit_dir"\n',
         "my.toml",
     )
     cfg = load_config(config=explicit / "my.toml", start=tmp_path)
@@ -62,7 +60,7 @@ def test_explicit_config_overrides_discovery(tmp_path: Path) -> None:
 def test_paths_resolve_relative_to_config_dir(tmp_path: Path) -> None:
     sub = tmp_path / "project"
     sub.mkdir()
-    write_config(sub, "schema_version = 1\n[paths]\nfeatures_dir = \"my_feats\"\n")
+    write_config(sub, 'schema_version = 1\n[paths]\nfeatures_dir = "my_feats"\n')
     cfg = load_config(start=sub)
     assert cfg.features_dir == (sub / "my_feats").resolve()
 
@@ -127,3 +125,58 @@ def test_specmason_config_is_frozen(tmp_path: Path) -> None:
     cfg = load_config(start=tmp_path)
     with pytest.raises(AttributeError):
         cfg.schema_version = 2  # type: ignore[misc]
+        cfg.schema_version = 2  # type: ignore[misc]
+
+
+def test_config_gherkin_profile_default(tmp_path: Path) -> None:
+    cfg = load_config(start=tmp_path)
+    assert cfg.gherkin_profile == "reqledger"
+
+
+def test_config_external_corpus_defaults(tmp_path: Path) -> None:
+    cfg = load_config(start=tmp_path)
+    assert cfg.external_corpus_id_namespace == "EPUBCHECK"
+    assert cfg.external_corpus_id_strategy == "path-scenario-hash"
+    assert len(cfg.external_corpus_fixture_roots) == 1
+    assert (
+        cfg.external_corpus_fixture_roots[0]
+        == (tmp_path / "specs/behavior/features").resolve()
+    )
+    assert "error" in cfg.external_corpus_expected_message_tags
+    assert "warning" in cfg.external_corpus_expected_message_tags
+
+
+def test_config_external_corpus_from_toml(tmp_path: Path) -> None:
+    write_config(
+        tmp_path,
+        (
+            "schema_version = 1\n"
+            "[gherkin]\n"
+            'profile = "external"\n'
+            "[external_corpus]\n"
+            'id_namespace = "MYNS"\n'
+            'id_strategy = "path-scenario-hash"\n'
+            'fixture_roots = ["my/fixtures"]\n'
+            'expected_message_tags = ["error"]\n'
+            "[requirements]\n"
+            "required = false\n"
+            "[pytest]\n"
+            'mapping_comment_prefix = "specmason"\n'
+            'short_mapping_comment_prefix = "sm"\n'
+            'intentional_unmapped_policy = "p.json"\n'
+        ),
+    )
+    cfg = load_config(start=tmp_path)
+    assert cfg.gherkin_profile == "external"
+    assert cfg.external_corpus_id_namespace == "MYNS"
+    assert cfg.external_corpus_fixture_roots == ((tmp_path / "my/fixtures").resolve(),)
+    assert cfg.external_corpus_expected_message_tags == ("error",)
+
+
+def test_config_gherkin_defaults_unchanged(tmp_path: Path) -> None:
+    """Existing gherkin defaults (require_req_tag etc.) are not changed."""
+    cfg = load_config(start=tmp_path)
+    assert cfg.gherkin_require_req_tag is True
+    assert cfg.gherkin_require_ac_tag is True
+    assert cfg.gherkin_default_keyword == "Scenario"
+    assert cfg.gherkin_official_parser is False

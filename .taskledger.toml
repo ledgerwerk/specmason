@@ -1,7 +1,7 @@
 # Project-local taskledger configuration.
 # This file lives in the source project root.
 config_version = 2
-taskledger_dir = '../taskledger-state/specmason'
+taskledger_dir = '../ledger/task/specmason'
 # Stable project identity. Commit this with your source tree.
 project_uuid = "bc00d62d-3629-479a-ae0c-6f5a49e51246"
 project_name = "specmason"
@@ -9,7 +9,7 @@ project_name = "specmason"
 # Taskledger branch-scoped state. This block is intentionally safe to commit.
 ledger_ref = "main"
 ledger_parent_ref = ""
-ledger_next_task_number = 2
+ledger_next_task_number = 3
 ledger_branch_guard = "off"
 
 # Cross-ledger identity. Local record IDs stay unchanged; global refs are derived.

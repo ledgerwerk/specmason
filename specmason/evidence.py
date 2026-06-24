@@ -172,10 +172,7 @@ def check_evidence_against_mappings(
                 Finding(
                     SML018_EVIDENCE_FAILED_MAPPED_TEST,
                     "error",
-                    (
-                        f"mapped test {nodeid} is {entry.status}: "
-                        f"{entry.message}"
-                    ),
+                    (f"mapped test {nodeid} is {entry.status}: {entry.message}"),
                     nodeid,
                 )
             )

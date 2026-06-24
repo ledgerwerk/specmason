@@ -40,16 +40,16 @@ specmason coverage --view tests --show gaps
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `specmason init` | Initialize workspace layout |
-| `specmason check` | Validate features, mappings, waivers |
-| `specmason create-gherkin --from MANIFEST` | Generate draft Gherkin from accepted criteria |
-| `specmason discover-pytest` | Discover tests without importing modules |
-| `specmason coverage` | Report coverage in both directions |
-| `specmason mappings` | Show the mapping inventory |
-| `specmason import-report pytest-junit XML` | Import JUnit XML evidence |
-| `specmason review` | Full review: check + coverage + evidence + reports |
+| Command                                    | Description                                        |
+| ------------------------------------------ | -------------------------------------------------- |
+| `specmason init`                           | Initialize workspace layout                        |
+| `specmason check`                          | Validate features, mappings, waivers               |
+| `specmason create-gherkin --from MANIFEST` | Generate draft Gherkin from accepted criteria      |
+| `specmason discover-pytest`                | Discover tests without importing modules           |
+| `specmason coverage`                       | Report coverage in both directions                 |
+| `specmason mappings`                       | Show the mapping inventory                         |
+| `specmason import-report pytest-junit XML` | Import JUnit XML evidence                          |
+| `specmason review`                         | Full review: check + coverage + evidence + reports |
 
 All commands support `--json` for machine-readable output and `--config PATH`
 for explicit config resolution.

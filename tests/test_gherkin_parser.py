@@ -48,22 +48,13 @@ def test_parse_feature_rule_scenario_steps_tags() -> None:
 
 
 def test_parse_example_is_synonym_for_scenario() -> None:
-    text = (
-        "Feature: X\n"
-        "  Example: a case\n"
-        "    Then ok\n"
-    )
+    text = "Feature: X\n  Example: a case\n    Then ok\n"
     feature = parse_feature(text)
     assert feature.scenarios[0].keyword == "Example"
 
 
 def test_parse_top_level_scenario_without_rule() -> None:
-    text = (
-        "@req-REQ-0002 @ac-AC-0002\n"
-        "Feature: X\n"
-        "  Scenario: top\n"
-        "    Given c\n"
-    )
+    text = "@req-REQ-0002 @ac-AC-0002\nFeature: X\n  Scenario: top\n    Given c\n"
     feature = parse_feature(text)
     assert len(feature.scenarios) == 1
     assert feature.scenarios[0].name == "top"
@@ -161,3 +152,178 @@ def test_parse_feature_file_reads_disk(tmp_path) -> None:
     feature = parse_feature_file(f)
     assert feature.name == "Login"
     assert feature.path == str(f)
+    assert feature.path == str(f)
+
+
+# ---------------------------------------------------------------------------
+# Official parser tests (gherkin-official adapter)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_official_background() -> None:
+    from specmason.gherkin.official import parse_feature_official
+
+    text = (
+        "Feature: X\n"
+        "  Background:\n"
+        "    Given a common precondition\n"
+        "  Scenario: s\n"
+        "    Then ok\n"
+    )
+    feat = parse_feature_official(text, path="bg.feature")
+    assert feat.background is not None
+    assert feat.background.name == ""
+    assert len(feat.background.steps) == 1
+    assert feat.background.steps[0].keyword == "Given"
+    assert feat.background.steps[0].text == "a common precondition"
+
+
+def test_parse_official_scenario_outline_with_examples() -> None:
+    from specmason.gherkin.official import parse_feature_official
+
+    text = (
+        "Feature: X\n"
+        "  Scenario Outline: eating <n>\n"
+        "    Given there are <n> cucumbers\n"
+        "    Then I have <left> left\n"
+        "    Examples:\n"
+        "      | n | left |\n"
+        "      | 5 | 3    |\n"
+        "      | 7 | 5    |\n"
+    )
+    feat = parse_feature_official(text, path="ol.feature")
+    assert len(feat.outline_scenarios) == 1
+    outline = feat.outline_scenarios[0]
+    assert outline.keyword == "Scenario Outline"
+    assert outline.name == "eating <n>"
+    assert len(outline.examples) == 1
+    ex = outline.examples[0]
+    assert [c.value for c in ex.header.cells] == ["n", "left"]
+    assert len(ex.body) == 2
+    assert [c.value for c in ex.body[0].cells] == ["5", "3"]
+
+
+def test_parse_official_data_table() -> None:
+    from specmason.gherkin.official import parse_feature_official
+
+    text = (
+        "Feature: X\n"
+        "  Scenario: s\n"
+        "    Given a table:\n"
+        "      | a | b |\n"
+        "      | 1 | 2 |\n"
+        "    Then ok\n"
+    )
+    feat = parse_feature_official(text, path="dt.feature")
+    step = feat.scenarios[0].steps[0]
+    assert step.argument is not None
+    assert step.argument.kind == "datatable"
+    assert len(step.argument.rows) == 2
+    assert [c.value for c in step.argument.rows[0].cells] == ["a", "b"]
+    assert [c.value for c in step.argument.rows[1].cells] == ["1", "2"]
+
+
+def test_parse_official_doc_string() -> None:
+    from specmason.gherkin.official import parse_feature_official
+
+    text = (
+        "Feature: X\n"
+        "  Scenario: s\n"
+        "    Given content:\n"
+        '      """\n'
+        "      hello world\n"
+        '      """\n'
+        "    Then ok\n"
+    )
+    feat = parse_feature_official(text, path="ds.feature")
+    step = feat.scenarios[0].steps[0]
+    assert step.argument is not None
+    assert step.argument.kind == "docstring"
+    assert step.argument.content.strip() == "hello world"
+
+
+def test_parse_official_wildcard_step() -> None:
+    from specmason.gherkin.official import parse_feature_official
+
+    text = "Feature: X\n  Scenario: s\n    * doing something\n    Then ok\n"
+    feat = parse_feature_official(text, path="wc.feature")
+    assert feat.scenarios[0].steps[0].keyword == "*"
+    assert feat.scenarios[0].steps[0].text == "doing something"
+
+
+def test_parse_official_language_header() -> None:
+    from specmason.gherkin.official import parse_feature_official
+
+    text = "# language: en\nFeature: X\n  Scenario: s\n    Then ok\n"
+    feat = parse_feature_official(text, path="en.feature")
+    assert feat.language == "en"
+    assert feat.scenarios[0].keyword == "Scenario"
+
+
+def test_parse_official_rule_with_background() -> None:
+    from specmason.gherkin.official import parse_feature_official
+
+    text = (
+        "Feature: X\n"
+        "  Rule: r1\n"
+        "    Background:\n"
+        "      Given setup\n"
+        "    Scenario: s\n"
+        "      Then ok\n"
+    )
+    feat = parse_feature_official(text, path="rb.feature")
+    rule = feat.rules[0]
+    assert rule.background is not None
+    assert rule.background.steps[0].text == "setup"
+    assert len(rule.scenarios) == 1
+
+
+def test_parse_official_missing_extra_raises_clear_error(monkeypatch) -> None:
+    import specmason.gherkin.official as mod
+
+    monkeypatch.setattr(mod, "_HAS_GHERKIN", False)
+    with pytest.raises(GherkinParseError) as exc:
+        mod.parse_feature_official("Feature: X\n", path="x.feature")
+    assert "gherkin-official" in exc.value.message
+    assert "pip install" in exc.value.message
+
+
+def test_parse_official_syntax_error_maps_to_sml003() -> None:
+    from specmason.gherkin.official import parse_feature_official
+
+    with pytest.raises(GherkinParseError) as exc:
+        parse_feature_official("not valid gherkin", path="bad.feature")
+    assert exc.value.code == SML003_INVALID_FEATURE_SYNTAX
+
+
+def test_parse_official_no_feature_raises() -> None:
+    from specmason.gherkin.official import parse_feature_official
+
+    # gherkin-official returns empty dict for empty input
+    feat = parse_feature_official("", path="empty.feature")
+    # An empty feature is returned (name="", no scenarios)
+    assert feat.name == ""
+
+
+def test_parse_official_expand_scenarios() -> None:
+    from specmason.gherkin.model import expand_scenarios
+    from specmason.gherkin.official import parse_feature_official
+
+    text = (
+        "Feature: X\n"
+        "  Scenario Outline: test <x>\n"
+        "    Given <x>\n"
+        "    Examples:\n"
+        "      | x |\n"
+        "      | a |\n"
+        "      | b |\n"
+        "      | c |\n"
+    )
+    feat = parse_feature_official(text, path="ex.feature")
+    expanded = expand_scenarios(feat)
+    assert len(expanded) == 3
+    assert expanded[0].row_values == (("x", "a"),)
+    assert expanded[1].row_values == (("x", "b"),)
+    assert expanded[2].row_values == (("x", "c"),)
+    assert expanded[0].outline_row_index == 0
+    assert expanded[2].outline_row_index == 2
