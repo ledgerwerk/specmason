@@ -69,6 +69,21 @@ Feature: Dup
     assert "Duplicate" in findings[0].message
 
 
+def test_identity_repeated_titles_with_distinct_steps_are_unique() -> None:
+    src = """\
+Feature: Dup
+  Scenario: repeated title
+    Given first path
+  Scenario: repeated title
+    Given second path
+"""
+    feat = _make_feature(src, path="dup.feature")
+    manifest, findings = build_identity_manifest([feat], namespace="EPUBCHECK")
+    assert len(findings) == 0
+    assert len(manifest.items) == 2
+    assert manifest.items[0].id != manifest.items[1].id
+
+
 def test_identity_explicit_tag() -> None:
     src = """\
 Feature: Tagged
@@ -99,6 +114,25 @@ Feature: Expand
     assert len(manifest.items) == 2
     assert manifest.items[0].examples_row == {"x": "a"}
     assert manifest.items[1].examples_row == {"x": "b"}
+    assert manifest.items[0].id != manifest.items[1].id
+
+
+def test_identity_duplicate_example_rows_in_distinct_blocks_are_unique() -> None:
+    src = """\
+Feature: Expand
+  Scenario Outline: test <x>
+    Given <x>
+    Examples:
+      | x |
+      | a |
+    Examples: second block
+      | x |
+      | a |
+"""
+    feat = _make_feature(src, path="expand.feature")
+    manifest, findings = build_identity_manifest([feat], namespace="EPUBCHECK")
+    assert len(findings) == 0
+    assert len(manifest.items) == 2
     assert manifest.items[0].id != manifest.items[1].id
 
 

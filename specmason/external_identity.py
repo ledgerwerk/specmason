@@ -1,15 +1,16 @@
 """Stable external-corpus identity generation.
 
 Generates deterministic scenario IDs for external Gherkin corpora that lack
-``@req-REQ-NNNN`` / ``@ac-AC-NNNN`` tags.  IDs survive title edits and line
-movement (within reason) and are written to ``manifest.json`` for downstream
-traceability.
+``@req-REQ-NNNN`` / ``@ac-AC-NNNN`` tags. IDs are derived from the feature path,
+rule context, scenario content, and examples-row values, so they remain stable
+across line movement and distinguish repeated scenario titles with different
+steps. They are written to ``manifest.json`` for downstream traceability.
 
 Identity resolution order:
 
 1. Explicit tag matching the configured namespace prefix (e.g. ``@EPUBCHECK-...``).
 2. Deterministic hash: ``<NAMESPACE>-<8-char-upper-sha1(
-       feature-relative-path + NUL + rule-name + NUL + scenario-name
+       feature-relative-path + NUL + rule-name + NUL + scenario-signature
        + NUL + examples-row-key
    )>``.
 """
@@ -28,6 +29,8 @@ from specmason.gherkin.model import (
     Feature,
     Scenario,
     ScenarioOutline,
+    Step,
+    StepArgument,
     expand_scenarios,
 )
 
@@ -48,11 +51,11 @@ class IdentityItem:
 def _hash_key(
     feature_path: str,
     rule_name: str,
-    scenario_name: str,
+    scenario_signature: str,
     row_key: str,
 ) -> str:
     """Produce the 8-char upper SHA1 identity hash."""
-    raw = f"{feature_path}\0{rule_name}\0{scenario_name}\0{row_key}"
+    raw = f"{feature_path}\0{rule_name}\0{scenario_signature}\0{row_key}"
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:8].upper()
 
 
@@ -67,8 +70,31 @@ def _extract_explicit_id(tags: tuple[str, ...], namespace: str) -> str | None:
 
 def _row_key(expanded: ExpandedScenario) -> str:
     """Build a stable key from an examples row's column/value pairs."""
+    block_key = f"{expanded.examples_index}:{expanded.examples_name}"
     parts = [f"{col}={val}" for col, val in expanded.row_values]
-    return "|".join(parts)
+    return f"{block_key}|{'|'.join(parts)}"
+
+
+def _step_argument_key(argument: StepArgument | None) -> str:
+    if argument is None or argument.kind == "none":
+        return ""
+    if argument.kind == "docstring":
+        return f"docstring:{argument.content_type}:{argument.content}"
+    row_parts = [
+        "|".join(cell.value for cell in row.cells)
+        for row in argument.rows
+    ]
+    return f"datatable:{'||'.join(row_parts)}"
+
+
+def _step_key(step: Step) -> str:
+    return "\0".join((step.keyword, step.text, _step_argument_key(step.argument)))
+
+
+def _scenario_signature(scenario: Scenario | ScenarioOutline) -> str:
+    tag_key = "|".join(scenario.tags)
+    step_key = "\n".join(_step_key(step) for step in scenario.steps)
+    return "\0".join((scenario.keyword, scenario.name, tag_key, step_key))
 
 
 def _source_sha256(text: str) -> str:
@@ -90,7 +116,7 @@ def _identity_for_scenario(
         item_id = explicit
     else:
         item_id = (
-            f"{namespace}-{_hash_key(feature_path, rule_name, scenario.name, row_key)}"
+            f"{namespace}-{_hash_key(feature_path, rule_name, _scenario_signature(scenario), row_key)}"
         )
 
     return IdentityItem(
@@ -117,7 +143,9 @@ def _identity_for_expanded(
     if explicit:
         item_id = f"{explicit}-{expanded.outline_row_index}"
     else:
-        item_id = f"{namespace}-{_hash_key(expanded.feature_path, expanded.rule_name, outline.name, row_key)}"
+        item_id = (
+            f"{namespace}-{_hash_key(expanded.feature_path, expanded.rule_name, _scenario_signature(outline), row_key)}"
+        )
 
     row_dict = dict(expanded.row_values) if expanded.row_values else None
 

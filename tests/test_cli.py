@@ -12,6 +12,29 @@ from specmason.cli import app
 runner = CliRunner()
 
 
+def _enable_external_corpus_mode(root: Path) -> None:
+    config_path = root / "specmason.toml"
+    text = config_path.read_text(encoding="utf-8")
+    text = text.replace("require_req_tag = true", "require_req_tag = false")
+    text = text.replace("require_ac_tag = true", "require_ac_tag = false")
+    text = text.replace("official_parser = false", "official_parser = true")
+    config_path.write_text(text, encoding="utf-8")
+
+
+def _write_requirements_manifest(root: Path) -> Path:
+    req_dir = root / "requirements"
+    req_dir.mkdir(exist_ok=True)
+    manifest = req_dir / "manifest.json"
+    manifest.write_text(
+        '{"schema_version":1,"tool":"reqledger","requirements":[{"id":"REQ-0001",'
+        '"title":"Login","kind":"functional","status":"accepted","priority":"must",'
+        '"criteria":[{"id":"AC-0001","statement":"reject invalid password",'
+        '"verification":"behavior","status":"accepted","tags":[]}]}]}',
+        encoding="utf-8",
+    )
+    return manifest
+
+
 def test_version() -> None:
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
@@ -121,5 +144,74 @@ def test_check_json_output(tmp_path: Path) -> None:
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert "findings" in data
+    finally:
+        os.chdir(cwd)
+
+
+def test_check_uses_official_parser_when_enabled(tmp_path: Path) -> None:
+    import os
+
+    cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init"])
+        _enable_external_corpus_mode(tmp_path)
+        feature = tmp_path / "specs" / "behavior" / "features" / "epub.feature"
+        feature.write_text(
+            (
+                "Feature: EPUB corpus\n"
+                "  Background:\n"
+                "    Given shared context\n"
+                "\n"
+                "  Scenario: Valid external corpus feature\n"
+                "    Then parsing succeeds\n"
+            ),
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["check", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["has_errors"] is False
+    finally:
+        os.chdir(cwd)
+
+
+def test_coverage_uses_official_parser_when_enabled(tmp_path: Path) -> None:
+    import os
+
+    cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init"])
+        _enable_external_corpus_mode(tmp_path)
+        feature = tmp_path / "specs" / "behavior" / "features" / "login.feature"
+        feature.write_text(
+            (
+                "Feature: Login\n"
+                "  Background:\n"
+                "    Given a registered user exists\n"
+                "\n"
+                "  @req-REQ-0001 @ac-AC-0001\n"
+                "  Scenario: Reject invalid password\n"
+                "    Then login is rejected\n"
+            ),
+            encoding="utf-8",
+        )
+        test_file = tmp_path / "tests" / "test_login.py"
+        test_file.parent.mkdir(parents=True, exist_ok=True)
+        test_file.write_text(
+            "# specmason: req=REQ-0001 ac=AC-0001\n"
+            "def test_reject_invalid_password():\n"
+            "    pass\n",
+            encoding="utf-8",
+        )
+        manifest = _write_requirements_manifest(tmp_path)
+        result = runner.invoke(
+            app,
+            ["coverage", "--json", "--requirements", str(manifest)],
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["forward"][0]["status"] == "mapped"
     finally:
         os.chdir(cwd)

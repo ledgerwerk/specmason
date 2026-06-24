@@ -226,6 +226,8 @@ class ExpandedScenario:
     row_values: tuple[tuple[str, str], ...]
     feature_path: str = ""
     rule_name: str = ""
+    examples_index: int = 0
+    examples_name: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -288,7 +290,7 @@ def expand_scenarios(feature: Feature) -> tuple[ExpandedScenario, ...]:
     def _expand(
         outline: ScenarioOutline, *, rule_name: str
     ) -> Iterator[ExpandedScenario]:
-        for block in outline.examples:
+        for block_index, block in enumerate(outline.examples):
             if block.header is None:
                 continue
             headers = [c.value for c in block.header.cells]
@@ -296,6 +298,8 @@ def expand_scenarios(feature: Feature) -> tuple[ExpandedScenario, ...]:
                 values = tuple(zip(headers, (c.value for c in row.cells)))
                 yield ExpandedScenario(
                     outline=outline,
+                    examples_index=block_index,
+                    examples_name=block.name,
                     outline_row_index=idx,
                     row_values=values,
                     feature_path=path,

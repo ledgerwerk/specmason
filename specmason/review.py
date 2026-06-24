@@ -21,6 +21,7 @@ from ledgercore.io import ensure_dir
 from ledgercore.jsonio import dumps_json
 
 from specmason.config import SpecMasonConfig
+from specmason.corpus import parse_corpus
 from specmason.coverage import CoverageReport, build_coverage, render_markdown
 from specmason.errors import Finding, Findings
 from specmason.evidence import (
@@ -29,7 +30,7 @@ from specmason.evidence import (
     parse_junit_xml,
 )
 from specmason.gherkin.lint import lint_feature_with_authority
-from specmason.gherkin.parser import GherkinParseError, parse_feature_file
+from specmason.gherkin.model import Feature
 from specmason.mappings import (
     MappingInventory,
     build_inventory,
@@ -64,25 +65,17 @@ class ReviewResult:
         }
 
 
-def _load_features(cfg: SpecMasonConfig) -> tuple[list, Findings]:
-    features: list = []
-    findings = Findings()
-    features_dir = cfg.features_dir
-    if not features_dir.is_dir():
-        return features, findings
-    for path in sorted(features_dir.rglob("*.feature")):
-        try:
-            feature = parse_feature_file(path)
-            features.append(feature)
-        except GherkinParseError as exc:
-            findings = findings.append(
-                Finding(exc.code, "error", exc.message, exc.path or str(path))
-            )
-    return features, findings
+def _load_features(cfg: SpecMasonConfig) -> tuple[list[Feature], Findings]:
+    if not cfg.features_dir.is_dir():
+        return [], Findings()
+    features, _, raw_findings = parse_corpus(
+        cfg.features_dir, official_parser=cfg.gherkin_official_parser
+    )
+    return features, Findings.of(*raw_findings)
 
 
 def _check_features(
-    features: list, cfg: SpecMasonConfig, index: RequirementsIndex | None
+    features: list[Feature], cfg: SpecMasonConfig, index: RequirementsIndex | None
 ) -> Findings:
     findings = Findings()
     req_ids = index.requirement_ids if index else None

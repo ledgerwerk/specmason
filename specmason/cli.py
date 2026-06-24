@@ -6,6 +6,7 @@ All commands support ``--json`` for machine-readable output. Global options
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import typer
@@ -13,8 +14,10 @@ import typer
 from specmason import __version__
 from specmason.config import load_config
 from specmason.coverage import build_coverage, render_markdown
+from specmason.errors import Findings
 from specmason.create import generate_features
 from specmason.evidence import check_evidence_against_mappings, parse_junit_xml
+from specmason.gherkin.model import Feature
 from specmason.init import init_workspace
 from specmason.mappings import (
     MappingInventory,
@@ -99,6 +102,19 @@ def _load_inventory(cfg: object) -> MappingInventory:
     return build_inventory(discovered, central_waivers=waivers)
 
 
+def _load_features(cfg: object) -> tuple[list[Feature], Findings]:
+    from specmason.config import SpecMasonConfig
+    from specmason.corpus import parse_corpus
+
+    c: SpecMasonConfig = cfg  # type: ignore[assignment]
+    if not c.features_dir.is_dir():
+        return [], Findings()
+    features, _, raw_findings = parse_corpus(
+        c.features_dir, official_parser=c.gherkin_official_parser
+    )
+    return features, Findings.of(*raw_findings)
+
+
 def _exit(result: dict[str, object], *, json_output: bool, errors: bool) -> None:
     if json_output:
         typer.echo(_to_json(result))
@@ -146,42 +162,32 @@ def check_command(
 ) -> None:
     """Validate config, features, mappings, and waivers."""
     from specmason.gherkin.lint import lint_feature_with_authority
-    from specmason.gherkin.parser import GherkinParseError, parse_feature_file
 
     cfg = _resolve_config(config=config, requirements=requirements)
-    errors = False
 
     from specmason.config import SpecMasonConfig
 
     c: SpecMasonConfig = cfg  # type: ignore[assignment]
     index = _load_index(c)
-    findings: list = []
+    features, findings = _load_features(c)
 
-    if c.features_dir.is_dir():
-        for path in sorted(c.features_dir.rglob("*.feature")):
-            try:
-                feature = parse_feature_file(path)
-                ff = lint_feature_with_authority(
+    for feature in features:
+        findings = findings.extend(
+            Findings.of(
+                *lint_feature_with_authority(
                     feature,
                     known_requirement_ids=index.requirement_ids if index else None,
                     known_criterion_ids=index.criterion_ids if index else None,
                     require_req_tag=c.gherkin_require_req_tag,
                     require_ac_tag=c.gherkin_require_ac_tag,
                 )
-                findings.extend(ff)
-            except GherkinParseError as exc:
-                from specmason.errors import Finding
-
-                findings.append(Finding(exc.code, "error", exc.message, exc.path))
+            )
+        )
 
     waivers, policy_findings = load_intentional_unmapped_policy(
         c.pytest_intentional_unmapped_policy
     )
-    findings.extend(policy_findings)
-
-    from specmason.errors import Findings
-
-    combined = Findings.of(*findings)
+    combined = findings.extend(Findings.of(*policy_findings))
     errors = combined.has_errors
 
     result = {"findings": combined.to_list(), "has_errors": errors}
@@ -265,17 +271,10 @@ def coverage_command(
 
     c: SpecMasonConfig = cfg  # type: ignore[assignment]
     index = _load_index(c)
-    from specmason.gherkin.parser import GherkinParseError, parse_feature_file
-
-    features = []
-    if c.features_dir.is_dir():
-        for path in sorted(c.features_dir.rglob("*.feature")):
-            try:
-                features.append(parse_feature_file(path))
-            except GherkinParseError:
-                pass
+    features, load_findings = _load_features(c)
     inventory = _load_inventory(c)
     report = build_coverage(features, inventory, index=index, mode=c.mode)
+    report = replace(report, findings=load_findings.extend(report.findings))
     errors = report.has_errors
 
     if json_output:
