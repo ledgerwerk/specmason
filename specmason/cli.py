@@ -14,8 +14,8 @@ import typer
 from specmason import __version__
 from specmason.config import load_config
 from specmason.coverage import build_coverage, render_markdown
-from specmason.errors import Findings
 from specmason.create import generate_features
+from specmason.errors import Findings
 from specmason.evidence import check_evidence_against_mappings, parse_junit_xml
 from specmason.gherkin.model import Feature
 from specmason.init import init_workspace

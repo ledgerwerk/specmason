@@ -80,10 +80,7 @@ def _step_argument_key(argument: StepArgument | None) -> str:
         return ""
     if argument.kind == "docstring":
         return f"docstring:{argument.content_type}:{argument.content}"
-    row_parts = [
-        "|".join(cell.value for cell in row.cells)
-        for row in argument.rows
-    ]
+    row_parts = ["|".join(cell.value for cell in row.cells) for row in argument.rows]
     return f"datatable:{'||'.join(row_parts)}"
 
 
@@ -115,9 +112,7 @@ def _identity_for_scenario(
     if explicit:
         item_id = explicit
     else:
-        item_id = (
-            f"{namespace}-{_hash_key(feature_path, rule_name, _scenario_signature(scenario), row_key)}"
-        )
+        item_id = f"{namespace}-{_hash_key(feature_path, rule_name, _scenario_signature(scenario), row_key)}"
 
     return IdentityItem(
         id=item_id,
@@ -143,9 +138,7 @@ def _identity_for_expanded(
     if explicit:
         item_id = f"{explicit}-{expanded.outline_row_index}"
     else:
-        item_id = (
-            f"{namespace}-{_hash_key(expanded.feature_path, expanded.rule_name, _scenario_signature(outline), row_key)}"
-        )
+        item_id = f"{namespace}-{_hash_key(expanded.feature_path, expanded.rule_name, _scenario_signature(outline), row_key)}"
 
     row_dict = dict(expanded.row_values) if expanded.row_values else None
 
