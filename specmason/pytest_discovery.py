@@ -39,14 +39,14 @@ def _is_test_function(node: ast.AST) -> bool:
 
 def _start_line(func: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
     """Earliest source line of a function including its decorators."""
-    lines = [func.lineno, *(d.lineno for d in func.decorator_list)]
-    return min(lines)
+    return func.lineno
 
 
 def _preceding_comments(source_lines: list[str], start_line: int) -> tuple[str, ...]:
     """Return contiguous comment lines immediately above ``start_line``.
 
     Blank lines break the comment block. Lines are 1-indexed in ``source_lines``.
+    Also looks for comments above decorators.
     """
     comments: list[str] = []
     index = start_line - 1  # convert to 0-indexed; line above the start
@@ -55,6 +55,10 @@ def _preceding_comments(source_lines: list[str], start_line: int) -> tuple[str, 
         stripped = line.strip()
         if stripped.startswith("#"):
             comments.append(line.rstrip())
+            index -= 1
+            continue
+        # Skip decorators to find comments above them
+        if stripped.startswith("@"):
             index -= 1
             continue
         break

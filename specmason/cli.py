@@ -301,7 +301,7 @@ def mappings_command(
     else:
         for t in inventory.tests:
             status = t.status
-            mappings = ", ".join(f"{r}/{a}" for r, a in t.mappings) or "-"
+            mappings = ", ".join(f"{m.req_id}/{m.ac_id}" for m in t.mappings) or "-"
             typer.echo(f"{t.nodeid}  {status}  {mappings}")
 
 

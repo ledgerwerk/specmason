@@ -154,6 +154,42 @@ def _collect_examples(block: ExamplesBlock) -> None:
     # extract_fixture_refs which iterates examples blocks.
 
 
+def _collect_steps(steps: tuple[Step, ...], raw_refs: list[str]) -> None:
+    """Extend raw_refs with fixtures extracted from each step."""
+    for step in steps:
+        raw_refs.extend(_extract_from_step(step))
+
+
+def _collect_examples_blocks(
+    blocks: tuple[ExamplesBlock, ...], raw_refs: list[str]
+) -> None:
+    """Extend raw_refs with fixtures from examples table header cells."""
+    for block in blocks:
+        if block.header is None:
+            continue
+        for cell in block.header.cells:
+            if _looks_like_fixture(cell.value):
+                raw_refs.append(cell.value.strip())
+            raw_refs.extend(_extract_from_text(cell.value))
+
+
+def _collect_outlines(outlines, raw_refs: list[str]) -> None:
+    """Extend raw_refs with fixtures from outline steps and examples tables."""
+    for outline in outlines:
+        _collect_steps(outline.steps, raw_refs)
+        _collect_examples_blocks(outline.examples, raw_refs)
+
+
+def _collect_rules(rules, raw_refs: list[str]) -> None:
+    """Extend raw_refs with fixtures from rule backgrounds, scenarios, outlines."""
+    for rule in rules:
+        if rule.background is not None:
+            _collect_steps(rule.background.steps, raw_refs)
+        for sc in rule.scenarios:
+            _collect_steps(sc.steps, raw_refs)
+        _collect_outlines(rule.outline_scenarios, raw_refs)
+
+
 def extract_fixture_refs(
     feature: Feature,
     fixture_roots: tuple[Path, ...],
@@ -165,39 +201,11 @@ def extract_fixture_refs(
     raw_refs: list[str] = []
 
     if feature.background is not None:
-        for step in feature.background.steps:
-            raw_refs.extend(_extract_from_step(step))
-
+        _collect_steps(feature.background.steps, raw_refs)
     for sc in feature.scenarios:
-        for step in sc.steps:
-            raw_refs.extend(_extract_from_step(step))
-
-    for outline in feature.outline_scenarios:
-        for step in outline.steps:
-            raw_refs.extend(_extract_from_step(step))
-        for block in outline.examples:
-            if block.header is not None:
-                for cell in block.header.cells:
-                    if _looks_like_fixture(cell.value):
-                        raw_refs.append(cell.value.strip())
-                    raw_refs.extend(_extract_from_text(cell.value))
-
-    for rule in feature.rules:
-        if rule.background is not None:
-            for step in rule.background.steps:
-                raw_refs.extend(_extract_from_step(step))
-        for sc in rule.scenarios:
-            for step in sc.steps:
-                raw_refs.extend(_extract_from_step(step))
-        for outline in rule.outline_scenarios:
-            for step in outline.steps:
-                raw_refs.extend(_extract_from_step(step))
-            for block in outline.examples:
-                if block.header is not None:
-                    for cell in block.header.cells:
-                        if _looks_like_fixture(cell.value):
-                            raw_refs.append(cell.value.strip())
-                        raw_refs.extend(_extract_from_text(cell.value))
+        _collect_steps(sc.steps, raw_refs)
+    _collect_outlines(feature.outline_scenarios, raw_refs)
+    _collect_rules(feature.rules, raw_refs)
 
     result: list[FixtureRef] = []
     for raw in _dedup(raw_refs):

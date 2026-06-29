@@ -38,7 +38,6 @@ from specmason.pytest_discovery import DiscoveredTest
 _KV_RE = re.compile(r"(\w+)=(\S+)")
 _COMMENT_RE = re.compile(r"^#\s*(?P<prefix>specmason|sm)\s*:\s*(?P<body>.*)$")
 _UNMAPPED_RE = re.compile(r"unmapped\s*=\s*(?P<reason>.+)$")
-_SCENARIO_RE = re.compile(r"@scenario-(?P<scenario_id>[A-Z0-9-]+)$")
 
 
 @dataclass(frozen=True)
@@ -168,14 +167,6 @@ def parse_comment(line: str) -> Mapping | InlineWaiver | None:
     unmapped_match = _UNMAPPED_RE.match(body)
     if unmapped_match is not None:
         return InlineWaiver(reason=unmapped_match.group("reason").strip())
-    # Check for @scenario- format first
-    scenario_match = _SCENARIO_RE.match(body)
-    if scenario_match:
-        scenario_id = scenario_match.group("scenario_id")
-        return Mapping(
-            req_id=scenario_id, ac_id="scenario", feature="", raw=line.strip()
-        )
-
     pairs = dict(_KV_RE.findall(body))
     req_id = pairs.get("req", "")
     ac_id = pairs.get("ac", "")

@@ -112,8 +112,9 @@ def _identity_for_scenario(
     if explicit:
         item_id = explicit
     else:
-        item_id = f"{namespace}-{_hash_key(feature_path, rule_name, _scenario_signature(scenario), row_key)}"
-
+        item_id = f"{namespace}-" + _hash_key(
+            feature_path, rule_name, _scenario_signature(scenario), row_key
+        )
     return IdentityItem(
         id=item_id,
         feature=feature_path,
@@ -138,8 +139,12 @@ def _identity_for_expanded(
     if explicit:
         item_id = f"{explicit}-{expanded.outline_row_index}"
     else:
-        item_id = f"{namespace}-{_hash_key(expanded.feature_path, expanded.rule_name, _scenario_signature(outline), row_key)}"
-
+        item_id = f"{namespace}-" + _hash_key(
+            expanded.feature_path,
+            expanded.rule_name,
+            _scenario_signature(outline),
+            row_key,
+        )
     row_dict = dict(expanded.row_values) if expanded.row_values else None
 
     return IdentityItem(

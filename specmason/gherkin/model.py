@@ -295,7 +295,7 @@ def expand_scenarios(feature: Feature) -> tuple[ExpandedScenario, ...]:
                 continue
             headers = [c.value for c in block.header.cells]
             for idx, row in enumerate(block.body):
-                values = tuple(zip(headers, (c.value for c in row.cells)))
+                values = tuple(zip(headers, (c.value for c in row.cells), strict=True))
                 yield ExpandedScenario(
                     outline=outline,
                     examples_index=block_index,
