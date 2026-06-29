@@ -1,5 +1,5 @@
 ---
-title: specmason
+name: specmason
 description: Deterministic workflow for SpecMason behaviour specs, pytest mappings, coverage review, and evidence normalization.
 license: Apache-2.0
 compatibility: opencode
